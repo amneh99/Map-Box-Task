@@ -23,11 +23,7 @@ struct MainMapView: View {
             .onMapTapGesture { context in
                 viewModel.mapPin = PointAnnotation(coordinate: context.coordinate)
                     .image(named: "MapPin")
-            }
-            .onCameraChanged { cameraChanged in
-                DispatchQueue.main.async {
-                    viewModel.mapCoordinates = cameraChanged.cameraState.center
-                }
+                viewModel.pinCoordinates = context.coordinate
             }
             
             mapAddOns()
@@ -55,40 +51,16 @@ struct MainMapView: View {
     
     func mapAddOns() -> some View {
         VStack(alignment: .leading, spacing: 12) {
-            CoordinatesMapView(coordinates: $viewModel.mapCoordinates, initialCoordinates: viewModel.initialCoordinates)
+            if viewModel.pinCoordinates != nil {
+                CoordinatesMapView(coordinates: $viewModel.pinCoordinates)
+                    .transition(.opacity.combined(with: .move(edge: .top)))
+            }
             
             mapButtons()
         }
         .padding(8)
         .padding(.top, 90)
-    }
-}
-
-struct CoordinatesMapView: View {
-    @Binding var coordinates: CLLocationCoordinate2D?
-    var initialCoordinates: CLLocationCoordinate2D
-    
-    var latitude: CGFloat {
-        coordinates?.latitude ?? initialCoordinates.latitude
-    }
-    
-    var longitude: CGFloat {
-        coordinates?.longitude ?? initialCoordinates.longitude
-    }
-    
-    var body: some View {
-        HStack(spacing: 8) {
-            cell(key: "latitude", value: String(format: "%.4f", latitude))
-            cell(key: "longitude", value: String(format: "%.4f", longitude))
-        }
-    }
-    
-    func cell(key: String, value: String) -> some View {
-        HStack(spacing: 4) {
-            Text(key)
-            Text(value)
-        }
-        .font(.system(size: 12, weight: .medium))
+        .animation(.easeInOut(duration: 0.3), value: viewModel.pinCoordinates)
     }
 }
 
@@ -98,16 +70,18 @@ struct CoordinatesMapView: View {
 
 private class ViewModel: ObservableObject {
     @Published var mapPin: PointAnnotation?
-    @Published var mapCoordinates: CLLocationCoordinate2D?
+    @Published var pinCoordinates: CLLocationCoordinate2D?
     let initialCoordinates = CLLocationCoordinate2D(latitude: 41.9798, longitude: -87.90844)
+    let zoom = 11.85
     @Published var initialViewport: Viewport
     
     init() {
-        initialViewport = .camera(center: CLLocationCoordinate2D(latitude: initialCoordinates.latitude, longitude: initialCoordinates.longitude), zoom: 11.85)
+        initialViewport = .camera(center: CLLocationCoordinate2D(latitude: initialCoordinates.latitude, longitude: initialCoordinates.longitude), zoom: zoom)
     }
     
     func resetMapPin() {
         mapPin = nil
+        pinCoordinates = nil
         // Perform additional actions if needed after resetting the map pin
     }
     
@@ -116,7 +90,7 @@ private class ViewModel: ObservableObject {
             center: CLLocationCoordinate2D(
                 latitude: initialCoordinates.latitude,
                 longitude: initialCoordinates.longitude),
-            zoom: 11.85,
+            zoom: zoom,
             bearing: 0
         )
     }
